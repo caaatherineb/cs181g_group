@@ -76,7 +76,6 @@ impl Engine{
     )
     .expect("event loop error");
 }
-    }
 }
 trait Game{
     fn new (engine: &mut Engine) -> Self;
