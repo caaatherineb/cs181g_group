@@ -1,4 +1,9 @@
 use std::io;
+use frenderer::{
+    input::{Input, Key},
+    sprites::{Camera2D, SheetRegion, Transform},
+    wgpu, Renderer,
+};
 
 //  defining fields for gamestate
 struct GameState {
@@ -14,18 +19,78 @@ struct GameState {
 
 // implementing method for initializing game_state
 impl GameState {
-    fn new() -> Self {
-        GameState {
-            left_bank: vec!["goat", "grass", "lion", "person"],
-            right_bank: Vec::new(),
-            boat: Vec::new(),
-            is_on_left_bank: true,
-            has_goat: true,
-            has_grass: true,
-            has_lion: true,
-            has_person: true,
+        fn new(renderer: &mut Renderer, cache: &AssetCache) -> Self {
+            
+            
+            let tile_handle = cache
+                .load::<Png>("tilesheet")
+                .expect("Couldn't load tilesheet img");
+            let tile_img = tile_handle.read().0.to_rgba8();
+            let tile_tex = renderer.create_array_texture(
+                &[&tile_img],
+                wgpu::TextureFormat::Rgba8UnormSrgb,
+                tile_img.dimensions(),
+                Some("tiles-sprites"),
+            );
+            let level = Level::from_str(
+                &cache
+                    .load::<String>("level1")
+                    .expect("Couldn't access level1.txt")
+                    .read(),
+            );
+            let camera = Camera2D {
+                screen_pos: [0.0, 0.0],
+                screen_size: [W as f32, H as f32],
+            };
+            let sprite_estimate = level.sprite_count() + level.starts().len();
+            renderer.sprite_group_add(
+                &tile_tex,
+                vec![Transform::ZERO; sprite_estimate],
+                vec![SheetRegion::ZERO; sprite_estimate],
+                camera,
+            );
+            let player_start = *level
+                .starts()
+                .iter()
+                .find(|(t, _)| *t == EntityType::Player)
+                .map(|(_, ploc)| ploc)
+                .expect("Start level doesn't put the player anywhere");
+    
+            let font = frenderer::bitfont::BitFont::with_sheet_region(
+                    '0'..='9',
+                    SheetRegion::new(0, 0, 512, 0, 80, 8),
+                    8,
+                    8,
+                    0,
+                    0,
+                );
+            let mut game =         
+            GameState {
+                left_bank: vec!["goat", "grass", "lion", "person"],
+                right_bank: Vec::new(),
+                boat: Vec::new(),
+                is_on_left_bank: true,
+                has_goat: true,
+                has_grass: true,
+                has_lion: true,
+                has_person: true,
+            }
+            game.enter_level(player_start);
+            // let mut previous_level_state: game.level;
+            game
         }
-    }
+    // fn new() -> Self {
+    //     GameState {
+    //         left_bank: vec!["goat", "grass", "lion", "person"],
+    //         right_bank: Vec::new(),
+    //         boat: Vec::new(),
+    //         is_on_left_bank: true,
+    //         has_goat: true,
+    //         has_grass: true,
+    //         has_lion: true,
+    //         has_person: true,
+    //     }
+    // }
 
     // moves object either from left bank to the boat or right bank to the object
     fn move_object(&mut self, object: &'static str) {
